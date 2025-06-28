@@ -1,15 +1,15 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
+/*
 use std::sync::Arc;
-use tauri::{Manager, State};
+use tauri::{Manager, State, AppHandle, WebviewWindow};
 use tokio::sync::Mutex;
 use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod commands;
 mod database;
-mod networking;
+mod network;
 mod dice;
 mod assets;
 mod state;
@@ -18,7 +18,7 @@ mod errors;
 mod utils;
 
 use crate::database::DatabaseManager;
-use crate::networking::NetworkManager;
+use crate::network::NetworkManager;
 use crate::state::AppState;
 use crate::config::AppConfig;
 use crate::errors::AppError;
@@ -27,7 +27,18 @@ use crate::errors::AppError;
 type AppStateType = Arc<Mutex<AppState>>;
 type DatabaseType = Arc<Mutex<DatabaseManager>>;
 type NetworkType = Arc<Mutex<NetworkManager>>;
+*/
+fn main() {
+    // Initialize the Tauri application
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            // Add your command handlers here
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
 
+/*
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize tracing for logging
@@ -39,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    info!("Starting D&D VTT Application");
+    info!("Starting Tavern");
 
     // Load configuration
     let config = AppConfig::load().await?;
@@ -60,6 +71,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build Tauri application
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(Arc::new(Mutex::new(app_state)))
         .manage(Arc::new(Mutex::new(database)))
         .manage(Arc::new(Mutex::new(network_manager)))
@@ -114,54 +129,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::get_app_info,
             commands::export_campaign,
             commands::import_campaign,
+            
+            // Additional V2 utility commands
+            handle_menu_action,
+            show_main_window,
+            get_app_version,
+            restart_app,
         ])
         .setup(|app| {
             // Setup application window
-            let window = app.get_window("main").unwrap();
+            let window = app.get_webview_window("main").unwrap();
             
-            // Set minimum window size
+            // Set minimum window size using the new API
             let _ = window.set_min_size(Some(tauri::LogicalSize::new(1000.0, 700.0)));
             
             // Center window on screen
             let _ = window.center();
             
-            // Setup window event listeners
-            let app_handle = app.handle();
-            window.on_window_event(move |event| {
-                match event {
-                    tauri::WindowEvent::CloseRequested { .. } => {
-                        info!("Application closing");
-                        // Perform cleanup here
-                        let app_handle = app_handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            if let Some(db) = app_handle.try_state::<DatabaseType>() {
-                                if let Ok(db) = db.lock().await {
-                                    let _ = db.close().await;
-                                }
-                            }
-                            if let Some(network) = app_handle.try_state::<NetworkType>() {
-                                if let Ok(network) = network.lock().await {
-                                    let _ = network.shutdown().await;
-                                }
-                            }
-                        });
-                    }
-                    _ => {}
-                }
-            });
+            // Window event handling is now done differently in V2
+            setup_window_events(app.handle(), &window);
             
             Ok(())
-        })
-        .on_menu_event(|event| {
-            match event.menu_item_id() {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                "about" => {
-                    // Show about dialog
-                }
-                _ => {}
-            }
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -175,65 +163,123 @@ fn handle_error(error: AppError) {
     // Could also show user-facing error dialog here
 }
 
-// Application menu setup
-fn create_menu() -> tauri::Menu {
-    let quit = tauri::CustomMenuItem::new("quit".to_string(), "Quit").accelerator("CmdOrCtrl+Q");
-    let about = tauri::CustomMenuItem::new("about".to_string(), "About");
-    let new_campaign = tauri::CustomMenuItem::new("new_campaign".to_string(), "New Campaign").accelerator("CmdOrCtrl+N");
-    let open_campaign = tauri::CustomMenuItem::new("open_campaign".to_string(), "Open Campaign").accelerator("CmdOrCtrl+O");
-    let save_campaign = tauri::CustomMenuItem::new("save_campaign".to_string(), "Save Campaign").accelerator("CmdOrCtrl+S");
-    
-    let file_menu = tauri::Submenu::new("File", tauri::Menu::new()
-        .add_item(new_campaign)
-        .add_item(open_campaign)
-        .add_item(save_campaign)
-        .add_native_item(tauri::MenuItem::Separator)
-        .add_item(quit));
-    
-    let help_menu = tauri::Submenu::new("Help", tauri::Menu::new().add_item(about));
-    
-    tauri::Menu::new()
-        .add_submenu(file_menu)
-        .add_submenu(help_menu)
-}
+// Note: In Tauri V2, native menus are handled differently
+// You'll need to use the menu plugin or implement menus via the frontend
+// Here's an example of how you might handle menu actions via commands instead:
 
-// System tray setup (optional)
-fn create_system_tray() -> tauri::SystemTray {
-    let quit = tauri::CustomMenuItem::new("quit".to_string(), "Quit");
-    let show = tauri::CustomMenuItem::new("show".to_string(), "Show");
-    let tray_menu = tauri::SystemTrayMenu::new()
-        .add_item(show)
-        .add_native_item(tauri::SystemTrayMenuItem::Separator)
-        .add_item(quit);
-    
-    tauri::SystemTray::new().with_menu(tray_menu)
-}
-
-// Handle system tray events
-fn handle_system_tray_event(app: &tauri::AppHandle, event: tauri::SystemTrayEvent) {
-    match event {
-        tauri::SystemTrayEvent::LeftClick {
-            position: _,
-            size: _,
-            ..
-        } => {
-            let window = app.get_window("main").unwrap();
-            let _ = window.show();
-            let _ = window.set_focus();
+#[tauri::command]
+async fn handle_menu_action(action: String, app_handle: AppHandle) -> Result<(), String> {
+    match action.as_str() {
+        "quit" => {
+            app_handle.exit(0);
+            Ok(())
         }
-        tauri::SystemTrayEvent::MenuItemClick { id, .. } => {
-            match id.as_str() {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                "show" => {
-                    let window = app.get_window("main").unwrap();
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-                _ => {}
+        "new_campaign" => {
+            // Emit event to frontend to show new campaign dialog
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.emit("menu-action", "new_campaign");
             }
+            Ok(())
         }
-        _ => {}
+        "open_campaign" => {
+            // Emit event to frontend to show open campaign dialog
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.emit("menu-action", "open_campaign");
+            }
+            Ok(())
+        }
+        "save_campaign" => {
+            // Emit event to frontend to trigger save
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.emit("menu-action", "save_campaign");
+            }
+            Ok(())
+        }
+        "about" => {
+            // Show about dialog via frontend
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.emit("menu-action", "about");
+            }
+            Ok(())
+        }
+        _ => Err(format!("Unknown menu action: {}", action))
     }
 }
+
+// Example of how to handle app events in V2
+#[tauri::command]
+async fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        Ok(())
+    } else {
+        Err("Main window not found".to_string())
+    }
+}
+
+// Additional utility commands for V2
+#[tauri::command]
+async fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
+async fn restart_app(app_handle: AppHandle) {
+    app_handle.restart();
+}
+
+// Setup window event listeners (V2 approach)
+fn setup_window_events(app_handle: AppHandle, window: &WebviewWindow) {
+    let app_handle_clone = app_handle.clone();
+    
+    window.on_window_event(move |event| {
+        match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
+                info!("Application closing");
+                // Perform cleanup here
+                let app_handle = app_handle_clone.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Some(db) = app_handle.try_state::<DatabaseType>() {
+                        if let Ok(db) = db.lock().await {
+                            let _ = db.close().await;
+                        }
+                    }
+                    if let Some(network) = app_handle.try_state::<NetworkType>() {
+                        if let Ok(network) = network.lock().await {
+                            let _ = network.shutdown().await;
+                        }
+                    }
+                });
+            }
+            tauri::WindowEvent::Destroyed => {
+                info!("Window destroyed");
+            }
+            _ => {}
+        }
+    });
+}
+
+// Example of how to handle app events in V2
+#[tauri::command]
+async fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = app_handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        Ok(())
+    } else {
+        Err("Main window not found".to_string())
+    }
+}
+
+// Additional utility commands for V2
+#[tauri::command]
+async fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[tauri::command]
+async fn restart_app(app_handle: AppHandle) {
+    app_handle.restart();
+}
+*/
