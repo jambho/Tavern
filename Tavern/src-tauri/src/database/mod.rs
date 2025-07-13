@@ -403,7 +403,7 @@ impl DatabaseManager {
         for value in &bind_values {
             query_builder = query_builder.bind(value);
         }
-        query_builder = query_builder.bind(character_id);
+        query_builder = query_builder.bind(&now).bind(character_id);
 
         query_builder.execute(&self.pool).await?;
         Ok(())
