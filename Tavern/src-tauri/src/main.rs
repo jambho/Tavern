@@ -1,8 +1,16 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{AppHandle, Manager, WebviewWindow, Emitter};
+use tauri::{AppHandle, Manager, WebviewWindow, Emitter, async_runtime};
 use tracing::{info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use std::sync::{Arc, Mutex};
+
+use crate::state::{AppState, DatabaseManager};
+use crate::database::models::{Campaign, Character, Map, Token};
+
+mod commands;
+
+use commands::*;
 
 fn main() {
     tracing_subscriber::registry()
@@ -13,14 +21,17 @@ fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let db_path = "data/tavern.db"; // customize path as needed
+    async_runtime::block_on(async {
+
+    
+    let db_path = "data/tavern.db";
     let db = DatabaseManager::new(db_path)
         .await
         .expect("Failed to initialize database");
     db.run_migrations().await.expect("Migration failed");
 
     let database = Arc::new(Mutex::new(db));
-    let app_state = Arc::new(Mutex::new(AppState::default())); // Ensure AppState::default() exists
+    let app_state = Arc::new(Mutex::new(AppState::default()));
 
 
     tauri::Builder::default()
@@ -66,6 +77,7 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
+    });
 }
 
 // Example utility commands

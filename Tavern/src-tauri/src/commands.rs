@@ -1,11 +1,13 @@
-/*use crate::network::NetworkManager;
-use crate::state::AppState;
-use crate::dice::DiceRoller;
-use crate::assets::AssetManager;
-use crate::errors::{AppError, AppResult};
-use crate::config::AppConfig;
+//use crate::network::NetworkManager;
+//use crate::errors::{AppError, AppResult};
+//use crate::config::AppConfig;
+use crate::database::models::{
+    Campaign, Character, Map, Token, CampaignSettings, CreateCampaignData,
+    CreateCharacterData, CreateMapRequest, CreateTokenRequest, MapData,
+};      
+                               
 
-use tauri::{State, AppHandle, WebviewWindow};
+use tauri::{State, AppHandle, WebviewWindow, Manager, Emitter};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use serde::{Deserialize, Serialize};
@@ -221,7 +223,7 @@ pub async fn delete_character(
 // =============================================================================
 // Map Commands
 // =============================================================================
-
+/*
 #[tauri::command]
 pub async fn create_map(
     request: CreateMapRequest,
@@ -375,7 +377,7 @@ pub async fn delete_token(
 // =============================================================================
 // Dice Commands
 // =============================================================================
-
+/*
 #[tauri::command]
 pub async fn roll_dice(
     dice_expression: String,
@@ -428,7 +430,7 @@ pub async fn roll_initiative(
     
     Ok(results)
 }
-
+*/*/
 // =============================================================================
 // Utility Structs
 // =============================================================================
@@ -536,4 +538,3 @@ pub struct InitiativeResult {
     pub modifier: i32,
     pub total: i32,
 }
-*/
