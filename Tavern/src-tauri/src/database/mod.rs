@@ -31,7 +31,7 @@ impl DatabaseManager {
 
     /// Run database migrations
     pub async fn run_migrations(&self) -> AppResult<()> {
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        sqlx::migrate!("./src/database").run(&self.pool).await?;
         Ok(())
     }
 
@@ -166,10 +166,10 @@ impl DatabaseManager {
         );
 
         let mut query_builder = sqlx::query(&query);
-        for value in values {
-            query_builder = query_builder.bind(value);
-        }
-        query_builder = query_builder.bind(&now).bind(&campaign_id);
+        // for value in values {
+        //     query_builder = query_builder.bind(value);
+        // }
+        // query_builder = query_builder.bind(&now).bind(&campaign_id);
 
         query_builder.execute(&self.pool).await?;
         Ok(())
@@ -300,6 +300,9 @@ impl DatabaseManager {
         Ok(characters)
     }
 
+    pub async fn get_characters_for_campaign(&self, _campaign_id: &String) -> AppResult<Vec<Character>> {
+        todo!()
+    }
     /// Get a specific character
     pub async fn get_character(&self, character_id: &str) -> AppResult<Option<Character>> {
         let row = sqlx::query!(
@@ -400,10 +403,10 @@ impl DatabaseManager {
         );
 
         let mut query_builder = sqlx::query(&query);
-        for value in &bind_values {
-            query_builder = query_builder.bind(value);
-        }
-        query_builder = query_builder.bind(&now).bind(character_id);
+        // for value in &bind_values {
+        //     query_builder = query_builder.bind(value);
+        // }
+        // query_builder = query_builder.bind(&now).bind(character_id);
 
         query_builder.execute(&self.pool).await?;
         Ok(())

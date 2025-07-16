@@ -5,11 +5,15 @@ use tracing::{info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use std::sync::{Arc, Mutex};
 
-use crate::state::{AppState, DatabaseManager};
+
+mod state;
+use crate::state::AppState;
+mod database;
+use crate::database::DatabaseManager;
 use crate::database::models::{Campaign, Character, Map, Token};
-
+mod errors;
 mod commands;
-
+mod networking;
 use commands::*;
 
 fn main() {
@@ -47,22 +51,22 @@ fn main() {
             create_campaign,
             get_campaigns,
             get_campaign,
-            update_campaign,
+            // update_campaign,
             delete_campaign,
             create_character,
             get_characters,
             get_character,
             update_character,
             delete_character,
-            create_map,
-            get_maps,
-            load_map,
-            save_map_state,
-            create_token,
-            update_token_position,
-            delete_token,
-            roll_dice,
-            roll_initiative
+            // create_map,
+            // get_maps,
+            // load_map,
+            // save_map_state,
+            // create_token,
+            // update_token_position,
+            // delete_token,
+            // roll_dice,
+            // roll_initiative
         ])
         .setup(|app| {
             // Window setup
