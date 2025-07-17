@@ -1,11 +1,14 @@
+
 //use crate::network::NetworkManager;
-//use crate::errors::{AppError, AppResult};
+use crate::errors::{AppError, AppResult};
 //use crate::config::AppConfig;
+use crate::database::{models, DatabaseManager};
 use crate::database::models::{
-    Campaign, Character, Map, Token, CampaignSettings, CreateCampaignData,
-    CreateCharacterData, CreateMapRequest, CreateTokenRequest, MapData,
-};      
-                               
+    Campaign, CampaignSettings, Character, CharacterStats, CreateCampaignData, CreateCharacterRequest, CreateMapRequest, CreateTokenRequest, Map, Token, UpdateCharacterRequest
+};
+
+use crate::state::AppState;      
+use crate::networking::NetworkManager;         
 
 use tauri::{State, AppHandle, WebviewWindow, Manager, Emitter};
 use std::sync::Arc;
@@ -56,7 +59,7 @@ pub async fn create_campaign(
     
     // Update application state
     let mut app_state = state.lock().await;
-    app_state.set_active_campaign(campaign_id.clone());
+    //app_state.set_active_campaign(campaign_id.clone());
     
     // Emit event to frontend about the new campaign
     if let Some(window) = app_handle.get_webview_window("main") {
@@ -85,10 +88,10 @@ pub async fn get_campaign(
     Ok(campaign)
 }
 
-#[tauri::command]
+// #[tauri::command]
 pub async fn update_campaign(
     campaign_id: String,
-    request: UpdateCampaignRequest,
+    request: crate::database::models::UpdateCampaignRequest,
     database: State<'_, DatabaseType>,
     app_handle: AppHandle,
 ) -> AppResult<()> {
@@ -115,9 +118,9 @@ pub async fn delete_campaign(
     
     // Update application state if this was the active campaign
     let mut app_state = state.lock().await;
-    if app_state.get_active_campaign() == Some(&campaign_id) {
-        app_state.clear_active_campaign();
-    }
+    //if app_state.get_active_campaign() == Some(&campaign_id) {
+    //    app_state.clear_active_campaign();
+    //}
     
     // Emit event to frontend about the campaign deletion
     if let Some(window) = app_handle.get_webview_window("main") {
@@ -131,15 +134,15 @@ pub async fn delete_campaign(
 // Character Commands
 // =============================================================================
 
-#[derive(Deserialize)]
-pub struct CreateCharacterRequest {
-    pub campaign_id: String,
-    pub name: String,
-    pub character_class: String,
-    pub level: i32,
-    pub race: String,
-    pub stats: CharacterStats,
-}
+// #[derive(Deserialize)]
+// pub struct CreateCharacterRequest {
+//     pub campaign_id: String,
+//     pub name: String,
+//     pub character_class: String,
+//     pub level: i32,
+//     pub race: String,
+//     pub stats: CharacterStats,
+// }
 
 #[tauri::command]
 pub async fn create_character(
@@ -148,13 +151,16 @@ pub async fn create_character(
     app_handle: AppHandle,
 ) -> AppResult<String> {
     let db = database.lock().await;
-    let character_id = db.create_character(CreateCharacterData {
+    let character_id = db.create_character(CreateCharacterRequest {
         campaign_id: request.campaign_id,
         name: request.name,
+        player_name: request.player_name,
         character_class: request.character_class,
         level: request.level,
         race: request.race,
+        background: request.background,
         stats: request.stats,
+        is_npc: request.is_npc,
     }).await?;
     
     // Emit event to frontend
@@ -193,7 +199,7 @@ pub async fn update_character(
     app_handle: AppHandle,
 ) -> AppResult<()> {
     let db = database.lock().await;
-    db.update_character(character_id.clone(), request).await?;
+    db.update_character(&character_id.clone(), request).await?;
     
     // Emit event to frontend
     if let Some(window) = app_handle.get_webview_window("main") {
@@ -435,106 +441,106 @@ pub async fn roll_initiative(
 // Utility Structs
 // =============================================================================
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateCharacterData {
-    pub campaign_id: String,
-    pub name: String,
-    pub character_class: String,
-    pub level: i32,
-    pub race: String,
-    pub stats: CharacterStats,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct CreateCharacterData {
+//     pub campaign_id: String,
+//     pub name: String,
+//     pub character_class: String,
+//     pub level: i32,
+//     pub race: String,
+//     pub stats: CharacterStats,
+// }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CharacterStats {
-    pub strength: i32,
-    pub dexterity: i32,
-    pub constitution: i32,
-    pub intelligence: i32,
-    pub wisdom: i32,
-    pub charisma: i32,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct CharacterStats {
+//     pub strength: i32,
+//     pub dexterity: i32,
+//     pub constitution: i32,
+//     pub intelligence: i32,
+//     pub wisdom: i32,
+//     pub charisma: i32,
+// }
 
-impl CharacterStats {
-    pub fn dexterity_modifier(&self) -> i32 {
-        (self.dexterity - 10) / 2
-    }
-}
+// impl CharacterStats {
+//     pub fn dexterity_modifier(&self) -> i32 {
+//         (self.dexterity - 10) / 2
+//     }
+// }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateCharacterRequest {
-    pub name: Option<String>,
-    pub character_class: Option<String>,
-    pub level: Option<i32>,
-    pub race: Option<String>,
-    pub stats: Option<CharacterStats>,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct UpdateCharacterRequest {
+//     pub name: Option<String>,
+//     pub character_class: Option<String>,
+//     pub level: Option<i32>,
+//     pub race: Option<String>,
+//     pub stats: Option<CharacterStats>,
+// }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateMapRequest {
-    pub campaign_id: String,
-    pub name: String,
-    pub width: i32,
-    pub height: i32,
-    pub background_image: Option<String>,
-}
+// // #[derive(Debug, Serialize, Deserialize)]
+// // pub struct CreateMapRequest {
+// //     pub campaign_id: String,
+// //     pub name: String,
+// //     pub width: i32,
+// //     pub height: i32,
+// //     pub background_image: Option<String>,
+// // }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MapData {
-    pub tokens: Vec<TokenData>,
-    pub fog_of_war: Option<String>,
-    pub grid_size: Option<i32>,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct MapData {
+//     pub tokens: Vec<TokenData>,
+//     pub fog_of_war: Option<String>,
+//     pub grid_size: Option<i32>,
+// }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TokenData {
-    pub id: String,
-    pub x: f64,
-    pub y: f64,
-    pub image: String,
-    pub size: f64,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct TokenData {
+//     pub id: String,
+//     pub x: f64,
+//     pub y: f64,
+//     pub image: String,
+//     pub size: f64,
+// }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateTokenRequest {
-    pub map_id: String,
-    pub character_id: Option<String>,
-    pub name: String,
-    pub x: f64,
-    pub y: f64,
-    pub image: String,
-    pub size: f64,
-}
+// // #[derive(Debug, Serialize, Deserialize)]
+// // pub struct CreateTokenRequest {
+// //     pub map_id: String,
+// //     pub character_id: Option<String>,
+// //     pub name: String,
+// //     pub x: f64,
+// //     pub y: f64,
+// //     pub image: String,
+// //     pub size: f64,
+// // }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Asset {
-    pub id: String,
-    pub name: String,
-    pub asset_type: String,
-    pub file_path: String,
-    pub campaign_id: String,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct Asset {
+//     pub id: String,
+//     pub name: String,
+//     pub asset_type: String,
+//     pub file_path: String,
+//     pub campaign_id: String,
+// }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AppInfo {
-    pub name: String,
-    pub version: String,
-    pub description: String,
-}
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct AppInfo {
+//     pub name: String,
+//     pub version: String,
+//     pub description: String,
+// }
 
-#[derive(Serialize)]
-pub struct DiceResult {
-    pub expression: String,
-    pub rolls: Vec<i32>,
-    pub total: i32,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-}
+// #[derive(Serialize)]
+// pub struct DiceResult {
+//     pub expression: String,
+//     pub rolls: Vec<i32>,
+//     pub total: i32,
+//     pub timestamp: chrono::DateTime<chrono::Utc>,
+// }
 
-#[derive(Serialize)]
-pub struct InitiativeResult {
-    pub character_id: String,
-    pub character_name: String,
-    pub roll: i32,
-    pub modifier: i32,
-    pub total: i32,
-}
+// #[derive(Serialize)]
+// pub struct InitiativeResult {
+//     pub character_id: String,
+//     pub character_name: String,
+//     pub roll: i32,
+//     pub modifier: i32,
+//     pub total: i32,
+// }

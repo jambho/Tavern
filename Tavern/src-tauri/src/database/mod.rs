@@ -1,7 +1,7 @@
 use sqlx::{SqlitePool, Row};
 use std::path::Path;
 use uuid::Uuid;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde_json;
 
 use crate::errors::{AppError, AppResult};
@@ -31,7 +31,7 @@ impl DatabaseManager {
 
     /// Run database migrations
     pub async fn run_migrations(&self) -> AppResult<()> {
-        sqlx::migrate!("./migrations").run(&self.pool).await?;
+        sqlx::migrate!("./src/database").run(&self.pool).await?;
         Ok(())
     }
 
@@ -73,7 +73,7 @@ impl DatabaseManager {
 
     /// Get all campaigns
     pub async fn get_all_campaigns(&self) -> AppResult<Vec<Campaign>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT id, name, description, dm_name, settings, created_at, updated_at, is_active
             FROM campaigns
@@ -85,46 +85,65 @@ impl DatabaseManager {
 
         let mut campaigns = Vec::new();
         for row in rows {
-            let settings: CampaignSettings = serde_json::from_str(&row.settings)?;
+            let id: String = row.try_get("id").unwrap_or_default();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let description: String = row.try_get("description").unwrap_or_default();
+            let dm_name: String = row.try_get("dm_name").unwrap_or_default();
+            let settings: CampaignSettings = match row.try_get::<Option<&str>, _>("settings")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => CampaignSettings::default(),
+            };
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
+            let is_active: bool = row.try_get("is_active").unwrap_or(true);
             campaigns.push(Campaign {
-                id: row.id,
-                name: row.name,
-                description: row.description,
-                dm_name: row.dm_name,
+                id,
+                name,
+                description: Some(description),
+                dm_name,
                 settings,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                is_active: row.is_active,
+                created_at: created_at,
+                updated_at: updated_at,
+                is_active,
             });
         }
-
         Ok(campaigns)
     }
 
     /// Get a specific campaign by ID
     pub async fn get_campaign(&self, campaign_id: &str) -> AppResult<Option<Campaign>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT id, name, description, dm_name, settings, created_at, updated_at, is_active
             FROM campaigns
             WHERE id = ?1
-            "#,
-            campaign_id
+            "#
         )
+        .bind(campaign_id)
         .fetch_optional(&self.pool)
         .await?;
 
         if let Some(row) = row {
-            let settings: CampaignSettings = serde_json::from_str(&row.settings)?;
+            let id: String = row.try_get("id").unwrap_or_default();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let description: Option<String> = row.try_get("description").unwrap_or_default();
+            let dm_name: String = row.try_get("dm_name").unwrap_or_default();
+            let settings: CampaignSettings = match row.try_get::<Option<&str>, _>("settings")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => CampaignSettings::default(),
+            };
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
+            let is_active: bool = row.try_get("is_active").unwrap_or(true);
             Ok(Some(Campaign {
-                id: row.id,
-                name: row.name,
-                description: row.description,
-                dm_name: row.dm_name,
+                id,
+                name,
+                description,
+                dm_name,
                 settings,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                is_active: row.is_active,
+                created_at: created_at,
+                updated_at: updated_at,
+                is_active,
             }))
         } else {
             Ok(None)
@@ -137,39 +156,38 @@ impl DatabaseManager {
 
         // Build dynamic update query based on provided fields
         let mut query_parts = Vec::new();
-        let mut values: Vec<&dyn sqlx::Encode<sqlx::Sqlite>> = Vec::new();
+        let mut bind_count = 0;
+
+        if data.name.is_some() {
+            query_parts.push("name = ?");
+            bind_count += 1;
+        }
+        if data.description.is_some() {
+            query_parts.push("description = ?");
+            bind_count += 1;
+        }
+        if data.settings.is_some() {
+            query_parts.push("settings = ?");
+            bind_count += 1;
+        }
+        query_parts.push("updated_at = ?");
+        bind_count += 1;
+
+        let query = format!("UPDATE campaigns SET {} WHERE id = ?", query_parts.join(", "));
+        let mut query_builder = sqlx::query(&query);
 
         if let Some(name) = &data.name {
-            query_parts.push("name = ?");
-            values.push(name);
+            query_builder = query_builder.bind(name);
         }
-
         if let Some(description) = &data.description {
-            query_parts.push("description = ?");
-            values.push(description);
+            query_builder = query_builder.bind(description);
         }
-
         if let Some(settings) = &data.settings {
             let settings_json = serde_json::to_string(settings)?;
-            query_parts.push("settings = ?");
-            values.push(&settings_json);
+            query_builder = query_builder.bind(settings_json);
         }
-
-        if query_parts.is_empty() {
-            return Ok(()); // Nothing to update
-        }
-
-        query_parts.push("updated_at = ?");
-        let query = format!(
-            "UPDATE campaigns SET {} WHERE id = ?",
-            query_parts.join(", ")
-        );
-
-        let mut query_builder = sqlx::query(&query);
-        for value in values {
-            query_builder = query_builder.bind(value);
-        }
-        query_builder = query_builder.bind(&now).bind(&campaign_id);
+        query_builder = query_builder.bind(now);
+        query_builder = query_builder.bind(campaign_id);
 
         query_builder.execute(&self.pool).await?;
         Ok(())
@@ -251,7 +269,7 @@ impl DatabaseManager {
 
     /// Get all characters for a campaign
     pub async fn get_characters(&self, campaign_id: &str) -> AppResult<Vec<Character>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT id, campaign_id, name, player_name, character_class, level, race, background,
                    stats, combat_stats, skills, equipment, spells, features, notes, avatar_url,
@@ -259,90 +277,152 @@ impl DatabaseManager {
             FROM characters
             WHERE campaign_id = ?1
             ORDER BY name ASC
-            "#,
-            campaign_id
+            "#
         )
+        .bind(campaign_id)
         .fetch_all(&self.pool)
         .await?;
 
         let mut characters = Vec::new();
         for row in rows {
-            let stats: CharacterStats = serde_json::from_str(&row.stats)?;
-            let combat_stats: CombatStats = serde_json::from_str(&row.combat_stats)?;
-            let skills: Skills = serde_json::from_str(&row.skills)?;
-            let equipment: Equipment = serde_json::from_str(&row.equipment)?;
-            let spells: Vec<Spell> = serde_json::from_str(&row.spells)?;
-            let features: Vec<Feature> = serde_json::from_str(&row.features)?;
-
+            let id: String = row.try_get("id").unwrap_or_default();
+            let campaign_id: String = row.try_get("campaign_id").unwrap_or_default();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let player_name: String = row.try_get("player_name").unwrap_or_default();
+            let character_class: String = row.try_get("character_class").unwrap_or_default();
+            let level = row.try_get("level").unwrap_or(1);
+            let race: String = row.try_get("race").unwrap_or_default();
+            let background: String = row.try_get("background").unwrap_or_default();
+            let stats: CharacterStats = match row.try_get::<Option<&str>, _>("stats")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => CharacterStats::default(),
+            };
+            let combat_stats: CombatStats = match row.try_get::<Option<&str>, _>("combat_stats")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => CombatStats::default(),
+            };
+            let skills: Skills = match row.try_get::<Option<&str>, _>("skills")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Skills::default(),
+            };
+            let equipment: Equipment = match row.try_get::<Option<&str>, _>("equipment")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Equipment::default(),
+            };
+            let spells: Vec<Spell> = match row.try_get::<Option<&str>, _>("spells")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let features: Vec<Feature> = match row.try_get::<Option<&str>, _>("features")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let notes: String = row.try_get("notes").unwrap_or_default();
+            let avatar_url: Option<String> = row.try_get("avatar_url").ok();
+            let is_npc: bool = row.try_get("is_npc").unwrap_or(false);
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             characters.push(Character {
-                id: row.id,
-                campaign_id: row.campaign_id,
-                name: row.name,
-                player_name: row.player_name,
-                character_class: row.character_class,
-                level: row.level,
-                race: row.race,
-                background: row.background,
+                id,
+                campaign_id,
+                name,
+                player_name: Some(player_name),
+                character_class,
+                level,
+                race,
+                background,
                 stats,
                 combat_stats,
                 skills,
                 equipment,
                 spells,
                 features,
-                notes: row.notes,
-                avatar_url: row.avatar_url,
-                is_npc: row.is_npc,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                notes,
+                avatar_url,
+                is_npc,
+                created_at: created_at,
+                updated_at: updated_at,
             });
         }
-
         Ok(characters)
     }
 
+    pub async fn get_characters_for_campaign(&self, _campaign_id: &String) -> AppResult<Vec<Character>> {
+        todo!()
+    }
     /// Get a specific character
     pub async fn get_character(&self, character_id: &str) -> AppResult<Option<Character>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT id, campaign_id, name, player_name, character_class, level, race, background,
                    stats, combat_stats, skills, equipment, spells, features, notes, avatar_url,
                    is_npc, created_at, updated_at
             FROM characters
             WHERE id = ?1
-            "#,
-            character_id
+            "#
         )
+        .bind(character_id)
         .fetch_optional(&self.pool)
         .await?;
 
         if let Some(row) = row {
-            let stats: CharacterStats = serde_json::from_str(&row.stats)?;
-            let combat_stats: CombatStats = serde_json::from_str(&row.combat_stats)?;
-            let skills: Skills = serde_json::from_str(&row.skills)?;
-            let equipment: Equipment = serde_json::from_str(&row.equipment)?;
-            let spells: Vec<Spell> = serde_json::from_str(&row.spells)?;
-            let features: Vec<Feature> = serde_json::from_str(&row.features)?;
-
+            let id: String = row.try_get("id").unwrap_or_default();
+            let campaign_id: String = row.try_get("campaign_id").unwrap_or_default();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let player_name: String = row.try_get("player_name").unwrap_or_default();
+            let character_class: String = row.try_get("character_class").unwrap_or_default();
+            let level = row.try_get("level").unwrap_or(1);
+            let race: String = row.try_get("race").unwrap_or_default();
+            let background: String = row.try_get("background").unwrap_or_default();
+            let stats: CharacterStats = match row.try_get::<Option<&str>, _>("stats")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => CharacterStats::default(),
+            };
+            let combat_stats: CombatStats = match row.try_get::<Option<&str>, _>("combat_stats")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => CombatStats::default(),
+            };
+            let skills: Skills = match row.try_get::<Option<&str>, _>("skills")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Skills::default(),
+            };
+            let equipment: Equipment = match row.try_get::<Option<&str>, _>("equipment")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Equipment::default(),
+            };
+            let spells: Vec<Spell> = match row.try_get::<Option<&str>, _>("spells")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let features: Vec<Feature> = match row.try_get::<Option<&str>, _>("features")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let notes: String = row.try_get("notes").unwrap_or_default();
+            let avatar_url: Option<String> = row.try_get("avatar_url").ok();
+            let is_npc: bool = row.try_get("is_npc").unwrap_or(false);
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             Ok(Some(Character {
-                id: row.id,
-                campaign_id: row.campaign_id,
-                name: row.name,
-                player_name: row.player_name,
-                character_class: row.character_class,
-                level: row.level,
-                race: row.race,
-                background: row.background,
+                id,
+                campaign_id,
+                name,
+                player_name: Some(player_name),
+                character_class,
+                level,
+                race,
+                background,
                 stats,
                 combat_stats,
                 skills,
                 equipment,
                 spells,
                 features,
-                notes: row.notes,
-                avatar_url: row.avatar_url,
-                is_npc: row.is_npc,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                notes,
+                avatar_url,
+                is_npc,
+                created_at: created_at,
+                updated_at: updated_at,
             }))
         } else {
             Ok(None)
@@ -393,6 +473,7 @@ impl DatabaseManager {
 
         query_parts.push("updated_at = ?".to_string());
         bind_values.push(now.to_rfc3339());
+        bind_values.push(character_id.to_string());
 
         let query = format!(
             "UPDATE characters SET {} WHERE id = ?",
@@ -400,10 +481,9 @@ impl DatabaseManager {
         );
 
         let mut query_builder = sqlx::query(&query);
-        for value in &bind_values {
+        for value in bind_values {
             query_builder = query_builder.bind(value);
         }
-        query_builder = query_builder.bind(&now).bind(character_id);
 
         query_builder.execute(&self.pool).await?;
         Ok(())
@@ -452,78 +532,101 @@ impl DatabaseManager {
 
     /// Get all maps for a campaign
     pub async fn get_maps(&self, campaign_id: &str) -> AppResult<Vec<Map>> {
-        let rows = sqlx::query!(
+        let rows = sqlx::query(
             r#"
             SELECT id, campaign_id, name, description, image_url, grid_size, width, height, tokens, fog_of_war, created_at, updated_at
             FROM maps
             WHERE campaign_id = ?1
             ORDER BY name ASC
-            "#,
-            campaign_id
+            "#
         )
+        .bind(campaign_id)
         .fetch_all(&self.pool)
         .await?;
 
         let mut maps = Vec::new();
         for row in rows {
-            let tokens: Vec<Token> = serde_json::from_str(&row.tokens)?;
-            let fog_of_war: Option<FogOfWar> = row.fog_of_war
-                .as_ref()
-                .map(|f| serde_json::from_str(f))
-                .transpose()?;
-
+            let id: String = row.try_get("id").unwrap_or_default();
+            let campaign_id: String = row.try_get("campaign_id").unwrap_or_default();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let description: String = row.try_get("description").unwrap_or_default();
+            let image_url: String = row.try_get("image_url").unwrap_or_default();
+            let grid_size = row.try_get("grid_size").unwrap_or(32);
+            let width = row.try_get("width").unwrap_or(0);
+            let height = row.try_get("height").unwrap_or(0);
+            let tokens: Vec<Token> = match row.try_get::<Option<&str>, _>("tokens")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let fog_of_war: Option<FogOfWar> = match row.try_get::<Option<&str>, _>("fog_of_war")? {
+                Some(s) => serde_json::from_str(s).ok(),
+                None => None,
+            };
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             maps.push(Map {
-                id: row.id,
-                campaign_id: row.campaign_id,
-                name: row.name,
-                description: row.description,
-                image_url: row.image_url,
-                grid_size: row.grid_size,
-                width: row.width,
-                height: row.height,
+                id,
+                campaign_id,
+                name,
+                description: Some(description),
+                image_url,
+                grid_size,
+                width,
+                height,
                 tokens,
                 fog_of_war,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: created_at,
+                updated_at: updated_at,
             });
         }
-
         Ok(maps)
     }
 
     /// Get a specific map
     pub async fn get_map(&self, map_id: &str) -> AppResult<Option<Map>> {
-        let row = sqlx::query!(
+        let row = sqlx::query(
             r#"
             SELECT id, campaign_id, name, description, image_url, grid_size, width, height, tokens, fog_of_war, created_at, updated_at
             FROM maps
             WHERE id = ?1
-            "#,
-            map_id
+            "#
         )
+        .bind(map_id)
         .fetch_optional(&self.pool)
         .await?;
 
         if let Some(row) = row {
-            let tokens: Vec<Token> = serde_json::from_str(&row.tokens)?;
-            let fog_of_war: Option<FogOfWar> = row.fog_of_war
-                .as_ref()
-                .map(|f| serde_json::from_str(f))
-                .transpose()?;
-
+            let id: String = row.try_get("id").unwrap_or_default();
+            let campaign_id: String = row.try_get("campaign_id").unwrap_or_default();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let description: String = row.try_get("description").unwrap_or_default();
+            let image_url: String = row.try_get("image_url").unwrap_or_default();
+            let grid_size = row.try_get("grid_size").unwrap_or(32);
+            let width = row.try_get("width").unwrap_or(0);
+            let height = row.try_get("height").unwrap_or(0);
+            let tokens: Vec<Token> = match row.try_get::<Option<&str>, _>("tokens")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let fog_of_war: Option<FogOfWar> = match row.try_get::<Option<&str>, _>("fog_of_war")? {
+                Some(s) => serde_json::from_str(s).ok(),
+                None => None,
+            };
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             Ok(Some(Map {
-                id: row.id,
-                campaign_id: row.campaign_id,
-                name: row.name,
-                description: row.description,
-                image_url: row.image_url,
-                grid_size: row.grid_size,
-                width: row.width,
-                height: row.height,
+                id,
+                campaign_id,
+                name,
+                description: Some(description),
+                image_url,
+                grid_size,
+                width,
+                height,
                 tokens,
                 fog_of_war,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: created_at,
+                updated_at: updated_at,
             }))
         } else {
             Ok(None)
@@ -584,19 +687,19 @@ impl DatabaseManager {
     /// Get assets for a campaign (or global assets if campaign_id is None)
     pub async fn get_assets(&self, campaign_id: Option<&str>) -> AppResult<Vec<Asset>> {
         let rows = if let Some(cid) = campaign_id {
-            sqlx::query!(
+            sqlx::query(
                 r#"
                 SELECT id, campaign_id, name, file_path, asset_type, file_size, mime_type, tags, created_at
                 FROM assets
                 WHERE campaign_id = ?1 OR campaign_id IS NULL
                 ORDER BY name ASC
-                "#,
-                cid
+                "#
             )
+            .bind(cid)
             .fetch_all(&self.pool)
             .await?
         } else {
-            sqlx::query!(
+            sqlx::query(
                 r#"
                 SELECT id, campaign_id, name, file_path, asset_type, file_size, mime_type, tags, created_at
                 FROM assets
@@ -610,22 +713,33 @@ impl DatabaseManager {
 
         let mut assets = Vec::new();
         for row in rows {
-            let asset_type: AssetType = serde_json::from_str(&row.asset_type)?;
-            let tags: Vec<String> = serde_json::from_str(&row.tags)?;
-
+            let id: String = row.try_get("id").unwrap_or_default();
+            let campaign_id: Option<String> = row.try_get("campaign_id").ok();
+            let name: String = row.try_get("name").unwrap_or_default();
+            let file_path: String = row.try_get("file_path").unwrap_or_default();
+            let asset_type: AssetType = match row.try_get::<Option<&str>, _>("asset_type")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => AssetType::default(),
+            };
+            let file_size: i64 = row.try_get("file_size").unwrap_or(0);
+            let mime_type: String = row.try_get("mime_type").unwrap_or_default();
+            let tags: Vec<String> = match row.try_get::<Option<&str>, _>("tags")? {
+                Some(s) => serde_json::from_str(s)?,
+                None => Vec::new(),
+            };
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
             assets.push(Asset {
-                id: row.id,
-                campaign_id: row.campaign_id,
-                name: row.name,
-                file_path: row.file_path,
+                id,
+                campaign_id,
+                name,
+                file_path,
                 asset_type,
-                file_size: row.file_size,
-                mime_type: row.mime_type,
+                file_size,
+                mime_type,
                 tags,
-                created_at: row.created_at,
+                created_at: created_at,
             });
         }
-
         Ok(assets)
     }
 
