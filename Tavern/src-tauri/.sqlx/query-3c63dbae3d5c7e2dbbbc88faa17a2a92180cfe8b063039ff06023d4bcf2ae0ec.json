@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO campaigns (id, name, description, dm_name, settings, created_at, updated_at, is_active)\n            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "3c63dbae3d5c7e2dbbbc88faa17a2a92180cfe8b063039ff06023d4bcf2ae0ec"
+}

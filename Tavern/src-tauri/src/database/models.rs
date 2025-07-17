@@ -139,7 +139,7 @@ pub struct Character {
     pub name: String,
     pub player_name: Option<String>,
     pub character_class: String,
-    pub level: i32,
+    pub level: i64,
     pub race: String,
     pub background: String,
     pub stats: CharacterStats,
@@ -157,17 +157,17 @@ pub struct Character {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CharacterStats {
-    pub strength: i32,
-    pub dexterity: i32,
-    pub constitution: i32,
-    pub intelligence: i32,
-    pub wisdom: i32,
-    pub charisma: i32,
-    pub proficiency_bonus: i32,
+    pub strength: i64,
+    pub dexterity: i64,
+    pub constitution: i64,
+    pub intelligence: i64,
+    pub wisdom: i64,
+    pub charisma: i64,
+    pub proficiency_bonus: i64,
 }
 
 impl CharacterStats {
-    pub fn get_modifier(&self, stat: &str) -> i32 {
+    pub fn get_modifier(&self, stat: &str) -> i64 {
         let score = match stat.to_lowercase().as_str() {
             "strength" | "str" => self.strength,
             "dexterity" | "dex" => self.dexterity,
@@ -180,7 +180,7 @@ impl CharacterStats {
         (score - 10) / 2
     }
 
-    pub fn get_saving_throw(&self, stat: &str, proficient: bool) -> i32 {
+    pub fn get_saving_throw(&self, stat: &str, proficient: bool) -> i64 {
         let modifier = self.get_modifier(stat);
         if proficient {
             modifier + self.proficiency_bonus
@@ -192,14 +192,14 @@ impl CharacterStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CombatStats {
-    pub armor_class: i32,
-    pub hit_points: i32,
-    pub max_hit_points: i32,
-    pub temporary_hit_points: i32,
-    pub speed: i32,
-    pub initiative_bonus: i32,
-    pub death_saves_success: i32,
-    pub death_saves_failure: i32,
+    pub armor_class: i64,
+    pub hit_points: i64,
+    pub max_hit_points: i64,
+    pub temporary_hit_points: i64,
+    pub speed: i64,
+    pub initiative_bonus: i64,
+    pub death_saves_success: i64,
+    pub death_saves_failure: i64,
     pub conditions: Vec<Condition>,
 }
 
@@ -207,7 +207,7 @@ pub struct CombatStats {
 pub struct Condition {
     pub name: String,
     pub description: String,
-    pub duration: Option<i32>,
+    pub duration: Option<i64>,
     pub source: String,
 }
 
@@ -262,9 +262,9 @@ pub struct Item {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub quantity: i32,
+    pub quantity: i64,
     pub weight: f32,
-    pub value: i32, // in copper pieces
+    pub value: i64, // in copper pieces
     pub rarity: ItemRarity,
     pub item_type: ItemType,
 }
@@ -366,15 +366,15 @@ pub enum WeaponProperty {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeaponRange {
-    pub normal: i32,
-    pub long: Option<i32>,
+    pub normal: i64,
+    pub long: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Armor {
     pub id: String,
     pub name: String,
-    pub armor_class: i32,
+    pub armor_class: i64,
     pub armor_type: ArmorType,
     pub stealth_disadvantage: bool,
     pub is_equipped: bool,
@@ -394,15 +394,15 @@ pub enum ArmorType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Currency {
-    pub copper: i32,
-    pub silver: i32,
-    pub electrum: i32,
-    pub gold: i32,
-    pub platinum: i32,
+    pub copper: i64,
+    pub silver: i64,
+    pub electrum: i64,
+    pub gold: i64,
+    pub platinum: i64,
 }
 
 impl Currency {
-    pub fn total_in_copper(&self) -> i32 {
+    pub fn total_in_copper(&self) -> i64 {
         self.copper + (self.silver * 10) + (self.electrum * 50) + (self.gold * 100) + (self.platinum * 1000)
     }
 
@@ -415,7 +415,7 @@ impl Currency {
 pub struct Spell {
     pub id: String,
     pub name: String,
-    pub level: i32,
+    pub level: i64,
     pub school: SpellSchool,
     pub casting_time: String,
     pub range: String,
@@ -465,7 +465,7 @@ pub struct SpellDamage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpellScaling {
     pub per_level: String,
-    pub max_level: i32,
+    pub max_level: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -493,8 +493,8 @@ pub enum FeatureSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureUses {
-    pub max_uses: i32,
-    pub current_uses: i32,
+    pub max_uses: i64,
+    pub current_uses: i64,
     pub recharge: RechargeType,
 }
 
@@ -521,9 +521,9 @@ pub struct Map {
     pub name: String,
     pub description: Option<String>,
     pub image_url: String,
-    pub grid_size: i32,
-    pub width: i32,
-    pub height: i32,
+    pub grid_size: i64,
+    pub width: i64,
+    pub height: i64,
     pub tokens: Vec<Token>,
     pub fog_of_war: Option<FogOfWar>,
     pub created_at: DateTime<Utc>,
@@ -541,7 +541,7 @@ pub struct Token {
     pub conditions: Vec<String>,
     pub notes: String,
     pub is_hidden: bool,
-    pub initiative: Option<i32>,
+    pub initiative: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -568,7 +568,7 @@ pub enum TokenSize {
 }
 
 impl TokenSize {
-    pub fn grid_squares(&self) -> i32 {
+    pub fn grid_squares(&self) -> i64 {
         match self {
             TokenSize::Tiny => 1,
             TokenSize::Small => 1,
@@ -629,7 +629,7 @@ pub struct CreateCharacterRequest {
     pub name: String,
     pub player_name: Option<String>,
     pub character_class: String,
-    pub level: i32,
+    pub level: i64,
     pub race: String,
     pub background: String,
     pub stats: CharacterStats,
@@ -639,7 +639,7 @@ pub struct CreateCharacterRequest {
 #[derive(Debug, Deserialize)]
 pub struct UpdateCharacterRequest {
     pub name: Option<String>,
-    pub level: Option<i32>,
+    pub level: Option<i64>,
     pub stats: Option<CharacterStats>,
     pub combat_stats: Option<CombatStats>,
     pub equipment: Option<Equipment>,
@@ -652,9 +652,9 @@ pub struct CreateMapRequest {
     pub name: String,
     pub description: Option<String>,
     pub image_url: String,
-    pub grid_size: i32,
-    pub width: i32,
-    pub height: i32,
+    pub grid_size: i64,
+    pub width: i64,
+    pub height: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -680,16 +680,16 @@ pub struct UpdateTokenPositionRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiceRoll {
     pub dice_notation: String,
-    pub individual_rolls: Vec<i32>,
+    pub individual_rolls: Vec<i64>,
     pub modifiers: Vec<DiceModifier>,
-    pub total: i32,
+    pub total: i64,
     pub roll_type: RollType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiceModifier {
     pub name: String,
-    pub value: i32,
+    pub value: i64,
     pub source: String,
 }
 
@@ -710,8 +710,8 @@ pub struct InitiativeRoll {
     pub character_id: String,
     pub character_name: String,
     pub roll: DiceRoll,
-    pub initiative_bonus: i32,
-    pub total: i32,
+    pub initiative_bonus: i64,
+    pub total: i64,
 }
 
 // =============================================================================
@@ -802,4 +802,10 @@ pub enum AssetType {
     Audio,
     #[serde(rename = "other")]
     Other,
+}
+
+impl Default for AssetType {
+    fn default() -> Self {
+        AssetType::Other
+    }
 }
