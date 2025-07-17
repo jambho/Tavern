@@ -92,8 +92,8 @@ impl DatabaseManager {
                 description: row.description,
                 dm_name: row.dm_name,
                 settings,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: row.created_at.and_utc(),
+                updated_at: row.updated_at.and_utc(),
                 is_active: row.is_active,
             });
         }
@@ -122,8 +122,8 @@ impl DatabaseManager {
                 description: row.description,
                 dm_name: row.dm_name,
                 settings,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: row.created_at.and_utc(),
+                updated_at: row.updated_at.and_utc(),
                 is_active: row.is_active,
             }))
         } else {
@@ -292,8 +292,8 @@ impl DatabaseManager {
                 notes: row.notes,
                 avatar_url: row.avatar_url,
                 is_npc: row.is_npc,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: row.created_at.and_utc(),
+                updated_at: row.updated_at.and_utc(),
             });
         }
 
@@ -344,8 +344,8 @@ impl DatabaseManager {
                 notes: row.notes,
                 avatar_url: row.avatar_url,
                 is_npc: row.is_npc,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: row.created_at.and_utc(),
+                updated_at: row.updated_at.and_utc(),
             }))
         } else {
             Ok(None)
@@ -486,8 +486,8 @@ impl DatabaseManager {
                 height: row.height,
                 tokens,
                 fog_of_war,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: row.created_at.and_utc(),
+                updated_at: row.updated_at.and_utc(),
             });
         }
 
@@ -525,8 +525,8 @@ impl DatabaseManager {
                 height: row.height,
                 tokens,
                 fog_of_war,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
+                created_at: row.created_at.and_utc(),
+                updated_at: row.updated_at.and_utc(),
             }))
         } else {
             Ok(None)
@@ -625,7 +625,7 @@ impl DatabaseManager {
                 file_size: row.file_size,
                 mime_type: row.mime_type,
                 tags,
-                created_at: row.created_at,
+                created_at: row.created_at.and_utc(),
             });
         }
 
