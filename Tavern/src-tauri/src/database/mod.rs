@@ -1,7 +1,7 @@
 use sqlx::{SqlitePool, Row};
 use std::path::Path;
 use uuid::Uuid;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde_json;
 
 use crate::errors::{AppError, AppResult};
@@ -93,17 +93,17 @@ impl DatabaseManager {
                 Some(s) => serde_json::from_str(s)?,
                 None => CampaignSettings::default(),
             };
-            let created_at = row.try_get("created_at")?;
-            let updated_at = row.try_get("updated_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             let is_active: bool = row.try_get("is_active").unwrap_or(true);
             campaigns.push(Campaign {
                 id,
                 name,
-                description,
+                description: Some(description),
                 dm_name,
                 settings,
-                created_at: created_at.and_utc(),
-                updated_at: updated_at.and_utc(),
+                created_at: created_at,
+                updated_at: updated_at,
                 is_active,
             });
         }
@@ -132,8 +132,8 @@ impl DatabaseManager {
                 Some(s) => serde_json::from_str(s)?,
                 None => CampaignSettings::default(),
             };
-            let created_at = row.try_get("created_at")?;
-            let updated_at = row.try_get("updated_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             let is_active: bool = row.try_get("is_active").unwrap_or(true);
             Ok(Some(Campaign {
                 id,
@@ -141,8 +141,8 @@ impl DatabaseManager {
                 description,
                 dm_name,
                 settings,
-                created_at: created_at.and_utc(),
-                updated_at: updated_at.and_utc(),
+                created_at: created_at,
+                updated_at: updated_at,
                 is_active,
             }))
         } else {
@@ -156,41 +156,38 @@ impl DatabaseManager {
 
         // Build dynamic update query based on provided fields
         let mut query_parts = Vec::new();
-        let mut values: Vec<&dyn sqlx::Encode<sqlx::Sqlite>> = Vec::new();
+        let mut bind_count = 0;
+
+        if data.name.is_some() {
+            query_parts.push("name = ?");
+            bind_count += 1;
+        }
+        if data.description.is_some() {
+            query_parts.push("description = ?");
+            bind_count += 1;
+        }
+        if data.settings.is_some() {
+            query_parts.push("settings = ?");
+            bind_count += 1;
+        }
+        query_parts.push("updated_at = ?");
+        bind_count += 1;
+
+        let query = format!("UPDATE campaigns SET {} WHERE id = ?", query_parts.join(", "));
+        let mut query_builder = sqlx::query(&query);
 
         if let Some(name) = &data.name {
-            query_parts.push("name = ?".to_string());
-            values.push(name);
+            query_builder = query_builder.bind(name);
         }
-
         if let Some(description) = &data.description {
-            query_parts.push("description = ?".to_string());
-            values.push(description);
+            query_builder = query_builder.bind(description);
         }
-
         if let Some(settings) = &data.settings {
             let settings_json = serde_json::to_string(settings)?;
-            query_parts.push("settings = ?".to_string());
-            values.push(&settings_json);
+            query_builder = query_builder.bind(settings_json);
         }
-
-        if query_parts.is_empty() {
-            return Ok(()); // Nothing to update
-        }
-
-        query_parts.push("updated_at = ?".to_string());
-        values.push(&now);
-        values.push(&campaign_id);
-
-        let query = format!(
-            "UPDATE campaigns SET {} WHERE id = ?",
-            query_parts.join(", ")
-        );
-
-        let mut query_builder = sqlx::query(&query);
-        for value in values {
-            query_builder = query_builder.bind(value);
-        }
+        query_builder = query_builder.bind(now);
+        query_builder = query_builder.bind(campaign_id);
 
         query_builder.execute(&self.pool).await?;
         Ok(())
@@ -293,7 +290,7 @@ impl DatabaseManager {
             let name: String = row.try_get("name").unwrap_or_default();
             let player_name: String = row.try_get("player_name").unwrap_or_default();
             let character_class: String = row.try_get("character_class").unwrap_or_default();
-            let level: i32 = row.try_get("level").unwrap_or(1);
+            let level = row.try_get("level").unwrap_or(1);
             let race: String = row.try_get("race").unwrap_or_default();
             let background: String = row.try_get("background").unwrap_or_default();
             let stats: CharacterStats = match row.try_get::<Option<&str>, _>("stats")? {
@@ -323,13 +320,13 @@ impl DatabaseManager {
             let notes: String = row.try_get("notes").unwrap_or_default();
             let avatar_url: Option<String> = row.try_get("avatar_url").ok();
             let is_npc: bool = row.try_get("is_npc").unwrap_or(false);
-            let created_at = row.try_get("created_at")?;
-            let updated_at = row.try_get("updated_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             characters.push(Character {
                 id,
                 campaign_id,
                 name,
-                player_name,
+                player_name: Some(player_name),
                 character_class,
                 level,
                 race,
@@ -343,8 +340,8 @@ impl DatabaseManager {
                 notes,
                 avatar_url,
                 is_npc,
-                created_at: created_at.and_utc(),
-                updated_at: updated_at.and_utc(),
+                created_at: created_at,
+                updated_at: updated_at,
             });
         }
         Ok(characters)
@@ -374,7 +371,7 @@ impl DatabaseManager {
             let name: String = row.try_get("name").unwrap_or_default();
             let player_name: String = row.try_get("player_name").unwrap_or_default();
             let character_class: String = row.try_get("character_class").unwrap_or_default();
-            let level: i32 = row.try_get("level").unwrap_or(1);
+            let level = row.try_get("level").unwrap_or(1);
             let race: String = row.try_get("race").unwrap_or_default();
             let background: String = row.try_get("background").unwrap_or_default();
             let stats: CharacterStats = match row.try_get::<Option<&str>, _>("stats")? {
@@ -404,13 +401,13 @@ impl DatabaseManager {
             let notes: String = row.try_get("notes").unwrap_or_default();
             let avatar_url: Option<String> = row.try_get("avatar_url").ok();
             let is_npc: bool = row.try_get("is_npc").unwrap_or(false);
-            let created_at = row.try_get("created_at")?;
-            let updated_at = row.try_get("updated_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             Ok(Some(Character {
                 id,
                 campaign_id,
                 name,
-                player_name,
+                player_name: Some(player_name),
                 character_class,
                 level,
                 race,
@@ -424,8 +421,8 @@ impl DatabaseManager {
                 notes,
                 avatar_url,
                 is_npc,
-                created_at: created_at.and_utc(),
-                updated_at: updated_at.and_utc(),
+                created_at: created_at,
+                updated_at: updated_at,
             }))
         } else {
             Ok(None)
@@ -476,7 +473,7 @@ impl DatabaseManager {
 
         query_parts.push("updated_at = ?".to_string());
         bind_values.push(now.to_rfc3339());
-        bind_values.push(character_id);
+        bind_values.push(character_id.to_string());
 
         let query = format!(
             "UPDATE characters SET {} WHERE id = ?",
@@ -554,9 +551,9 @@ impl DatabaseManager {
             let name: String = row.try_get("name").unwrap_or_default();
             let description: String = row.try_get("description").unwrap_or_default();
             let image_url: String = row.try_get("image_url").unwrap_or_default();
-            let grid_size: i32 = row.try_get("grid_size").unwrap_or(32);
-            let width: i32 = row.try_get("width").unwrap_or(0);
-            let height: i32 = row.try_get("height").unwrap_or(0);
+            let grid_size = row.try_get("grid_size").unwrap_or(32);
+            let width = row.try_get("width").unwrap_or(0);
+            let height = row.try_get("height").unwrap_or(0);
             let tokens: Vec<Token> = match row.try_get::<Option<&str>, _>("tokens")? {
                 Some(s) => serde_json::from_str(s)?,
                 None => Vec::new(),
@@ -565,21 +562,21 @@ impl DatabaseManager {
                 Some(s) => serde_json::from_str(s).ok(),
                 None => None,
             };
-            let created_at = row.try_get("created_at")?;
-            let updated_at = row.try_get("updated_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             maps.push(Map {
                 id,
                 campaign_id,
                 name,
-                description,
+                description: Some(description),
                 image_url,
                 grid_size,
                 width,
                 height,
                 tokens,
                 fog_of_war,
-                created_at: created_at.and_utc(),
-                updated_at: updated_at.and_utc(),
+                created_at: created_at,
+                updated_at: updated_at,
             });
         }
         Ok(maps)
@@ -604,9 +601,9 @@ impl DatabaseManager {
             let name: String = row.try_get("name").unwrap_or_default();
             let description: String = row.try_get("description").unwrap_or_default();
             let image_url: String = row.try_get("image_url").unwrap_or_default();
-            let grid_size: i32 = row.try_get("grid_size").unwrap_or(32);
-            let width: i32 = row.try_get("width").unwrap_or(0);
-            let height: i32 = row.try_get("height").unwrap_or(0);
+            let grid_size = row.try_get("grid_size").unwrap_or(32);
+            let width = row.try_get("width").unwrap_or(0);
+            let height = row.try_get("height").unwrap_or(0);
             let tokens: Vec<Token> = match row.try_get::<Option<&str>, _>("tokens")? {
                 Some(s) => serde_json::from_str(s)?,
                 None => Vec::new(),
@@ -615,21 +612,21 @@ impl DatabaseManager {
                 Some(s) => serde_json::from_str(s).ok(),
                 None => None,
             };
-            let created_at = row.try_get("created_at")?;
-            let updated_at = row.try_get("updated_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
+            let updated_at: DateTime<Utc> = row.try_get("updated_at")?;
             Ok(Some(Map {
                 id,
                 campaign_id,
                 name,
-                description,
+                description: Some(description),
                 image_url,
                 grid_size,
                 width,
                 height,
                 tokens,
                 fog_of_war,
-                created_at: created_at.and_utc(),
-                updated_at: updated_at.and_utc(),
+                created_at: created_at,
+                updated_at: updated_at,
             }))
         } else {
             Ok(None)
@@ -730,7 +727,7 @@ impl DatabaseManager {
                 Some(s) => serde_json::from_str(s)?,
                 None => Vec::new(),
             };
-            let created_at = row.try_get("created_at")?;
+            let created_at: DateTime<Utc> = row.try_get("created_at")?;
             assets.push(Asset {
                 id,
                 campaign_id,
@@ -740,7 +737,7 @@ impl DatabaseManager {
                 file_size,
                 mime_type,
                 tags,
-                created_at: created_at.and_utc(),
+                created_at: created_at,
             });
         }
         Ok(assets)
