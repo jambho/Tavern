@@ -3,7 +3,8 @@
 use tauri::{AppHandle, Manager, WebviewWindow, Emitter, async_runtime};
 use tracing::{info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 
 mod state;
@@ -44,6 +45,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .manage(database)
         .invoke_handler(tauri::generate_handler![
             get_app_version,
             restart_app,
