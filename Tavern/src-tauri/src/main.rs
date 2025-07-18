@@ -36,9 +36,65 @@ fn main() {
         .expect("Failed to initialize database");
     db.run_migrations().await.expect("Migration failed");
 
-    let database = Arc::new(Mutex::new(db));
+    let database = Arc::new(Mutex::new(db.clone()));
     let app_state = Arc::new(Mutex::new(AppState::default()));
 
+    //dev code
+    // let createCampaignData = database::models::CreateCampaignData {
+    //     name: "TestCampaign".to_string(),
+    //     description: Some("TestDescription".to_string()),
+    //     dm_name: "Jame".to_string(),
+    //     settings: database::models::CampaignSettings {
+    //         system: database::models::GameSystem::DnD5e,
+    //         house_rules: vec!(database::models::HouseRule { 
+    //             id: "1".to_string(), 
+    //             name: "TestRule".to_string(), 
+    //             description: "TestRuleDescription".to_string(), 
+    //             is_enabled: true 
+    //         }),
+    //         variant_rules: database::models::VariantRules {
+    //             flanking: true,
+    //             feats: true,
+    //             multiclassing: true,
+    //             optional_class_features: true,
+    //             customizing_ability_scores: true,
+    //         },
+    //         dice_rolling: database::models::DiceSettings {
+    //             advantage_mode: database::models::AdvantageMode::Ask,
+    //             critical_hit_rules: database::models::CriticalHitRules::Standard,
+    //             fumble_rules: false,
+    //             exploding_dice: false,
+    //         },
+    //         combat_settings: database::models::CombatSettings {
+    //             initiative_type: database::models::InitiativeType::Individual,
+    //             death_saves: true,
+    //             healing_surge: true,
+    //             action_surge_limit: 1,
+    //         },
+    //     },
+    // }; 
+    // let id = DatabaseManager::create_campaign(&db, createCampaignData).await.expect("Failed to Create Campaign");
+    // let fighterRequest = database::models::CreateCharacterRequest {
+    //     campaign_id: id,
+    //     name: "TestFighter".to_string(),
+    //     player_name: Some("Jame".to_string()),
+    //     character_class: "Fighter".to_string(),
+    //     level: 1,
+    //     race: "Human".to_string(),
+    //     background: "Hermit".to_string(),
+    //     stats: database::models::CharacterStats {
+    //         strength: 10,
+    //         dexterity: 10,
+    //         constitution: 10,
+    //         intelligence: 10,
+    //         wisdom: 10,
+    //         charisma: 10,
+    //         proficiency_bonus: 1,
+    //     },
+    //     is_npc: false,
+    // };
+    // let _ = DatabaseManager::create_character(&db, fighterRequest).await.expect("Failed to Create Character");
+    // end dev code
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
