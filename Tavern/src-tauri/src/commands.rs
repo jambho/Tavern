@@ -177,7 +177,7 @@ pub async fn get_characters(
     database: State<'_, DatabaseType>,
 ) -> AppResult<Vec<Character>> {
     let db = database.lock().await;
-    let characters = db.get_characters_for_campaign(&campaign_id).await?;
+    let characters = db.get_characters(&campaign_id).await?;
     Ok(characters)
 }
 

@@ -347,9 +347,6 @@ impl DatabaseManager {
         Ok(characters)
     }
 
-    pub async fn get_characters_for_campaign(&self, _campaign_id: &String) -> AppResult<Vec<Character>> {
-        todo!()
-    }
     /// Get a specific character
     pub async fn get_character(&self, character_id: &str) -> AppResult<Option<Character>> {
         let row = sqlx::query(
