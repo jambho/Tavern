@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Move, Grid3X3, Users } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import TokenDisplay from './TokenDisplay';
 
 // Types and Interfaces
 interface Token {
@@ -784,6 +785,9 @@ const GameBoard: React.FC = () => {
         {/* Canvas Area */}
         <div className="flex-1 overflow-auto bg-gray-50 p-4">
           <div className="bg-white rounded-lg shadow-sm border relative">
+            <div className="TokenDisplay">
+              {hoveredToken ? <TokenDisplay tokenId={hoveredToken} /> : <>{"No Token Hovered"}</>}
+            </div>
             <canvas
               ref={canvasRef}
               className={`border rounded-lg select-none ${
