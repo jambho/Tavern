@@ -2,18 +2,45 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { invoke } from '@tauri-apps/api/core';
 
+interface Position {
+  x: number;
+  y: number;
+}
 
-
-const TokenDisplay: React.FC<{tokenId: number}> = (
-    {tokenId},
+interface TokenDisplayProps {
+    tokenId: number;
+    tokenPosition: Position;
+}
+const TokenDisplay: React.FC<TokenDisplayProps> = (
+   {tokenId,
+    tokenPosition}
 ) => {
     //get all token data
-    const tokenIdRef = useRef(tokenId)
-
-
+    //tokenInfo = invoke('get_character', tokenId, campaignId);
     //format all token data & return it
     return (
-        <> {tokenId} </>
+        <div
+            style={{
+              position: "fixed",
+              left: tokenPosition.x,
+              top: tokenPosition.y,
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              color: "white",
+              padding: "4px 8px",
+              borderRadius: "4px",
+              fontSize: "28px",
+              pointerEvents: "none",
+              zIndex: 1000,
+              transform: "translate(-50%, -100%)",
+              whiteSpace: "pre-line",
+              textAlign: "center",
+            }}
+        
+        > 
+            
+            {tokenId} 
+            
+        </div>
     )
 }
 

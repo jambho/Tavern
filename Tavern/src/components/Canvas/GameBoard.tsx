@@ -50,7 +50,7 @@ const GameBoard: React.FC = () => {
   ]);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [hoveredToken, setHoveredToken] = useState<number | null>(null);
+  const [hoveredToken, setHoveredToken] = useState<Token | null>(null);
   const [boardSize, setBoardSize] = useState<BoardSize>({ width: 800, height: 600 });
   const [canvasScale, setCanvasScale] = useState<number>(1);
   const [canvasOffset, setCanvasOffset] = useState<Position>({ x: 0, y: 0 });
@@ -502,7 +502,7 @@ const GameBoard: React.FC = () => {
     const canvasCoords = screenToCanvas(e.clientX - rect.left, e.clientY - rect.top);
     const token = getTokenAtPosition(canvasCoords.x, canvasCoords.y);
     
-    setHoveredToken(token ? token.id : null);
+    setHoveredToken(token ? token : null);
   }, [isDragging, getTokenAtPosition, screenToCanvas]);
 
   // Draw the board
@@ -549,7 +549,7 @@ const GameBoard: React.FC = () => {
     // Draw tokens
     tokens.forEach(token => {
       const isBeingDragged = dragState?.tokenId === token.id;
-      const isHovered = token.id === hoveredToken;
+      const isHovered = token.id === hoveredToken?.id;
       
       // Add shadow for dragged tokens
       if (isBeingDragged) {
@@ -786,7 +786,7 @@ const GameBoard: React.FC = () => {
         <div className="flex-1 overflow-auto bg-gray-50 p-4">
           <div className="bg-white rounded-lg shadow-sm border relative">
             <div className="TokenDisplay">
-              {hoveredToken ? <TokenDisplay tokenId={hoveredToken} /> : <>{"No Token Hovered"}</>}
+              {hoveredToken && <TokenDisplay tokenId={hoveredToken.id} tokenPosition={canvasToScreen(hoveredToken.x, hoveredToken.y)} />}
             </div>
             <canvas
               ref={canvasRef}
@@ -807,6 +807,7 @@ const GameBoard: React.FC = () => {
                 
                 if (e.button === 0 && token) { // Left click only
                   handleTokenMouseDown(e, token);
+                  setHoveredToken(null);
                 }
               }}
               onContextMenu={(e) => {
