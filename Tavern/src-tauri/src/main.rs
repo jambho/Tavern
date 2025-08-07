@@ -102,12 +102,14 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(database)
+        .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             get_app_version,
             restart_app,
             handle_menu_action,
             show_main_window,
             create_campaign,
+            get_active_campaign_id,
             get_campaigns,
             get_campaign,
             // update_campaign,

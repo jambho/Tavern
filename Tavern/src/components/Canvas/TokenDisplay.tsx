@@ -8,16 +8,38 @@ interface Position {
 }
 
 interface TokenDisplayProps {
-    tokenId: number;
+    tokenId: string;
     tokenPosition: Position;
 }
+
+
 const TokenDisplay: React.FC<TokenDisplayProps> = (
    {tokenId,
     tokenPosition}
 ) => {
+    const [tokenInfo, setTokenInfo] = useState<String>("NO TOKEN INFO"); 
+    const [activeCampaign, setActiveCampaign] = useState<String>("NO ACTIVE CAMPAIGN"); 
+
+   
+    const handleCampaignIdUpdate = (campaignId: String) => {
+        if(campaignId != activeCampaign) {
+            setActiveCampaign(campaignId);
+        }
+    }
+    const handleTokenInfoUpdate = (tInfo: String) => {
+        if(tInfo != tokenInfo) {
+            setTokenInfo(tInfo);
+        }
+    }
     //get all token data
-    //tokenInfo = invoke('get_character', tokenId, campaignId);
+    invoke('get_active_campaign_id').then((cId) => handleCampaignIdUpdate(cId as String));
+    invoke('get_character', { characterId: tokenId, activeCampaign }).then((t) => handleTokenInfoUpdate(JSON.stringify(t as Object)));
+
+    console.log(activeCampaign);
+    console.log(tokenInfo);
     //format all token data & return it
+
+
     return (
         <div
             style={{

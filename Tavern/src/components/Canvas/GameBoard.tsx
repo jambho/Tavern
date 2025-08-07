@@ -5,7 +5,7 @@ import TokenDisplay from './TokenDisplay';
 
 // Types and Interfaces
 interface Token {
-  id: number;
+  id: string;
   x: number;
   y: number;
   color: string;
@@ -25,7 +25,7 @@ interface BoardSize {
 }
 
 interface DragState {
-  tokenId: number;
+  tokenId: string;
   offsetX: number;
   offsetY: number;
 }
@@ -44,9 +44,9 @@ const GameBoard: React.FC = () => {
   const [gridSize, setGridSize] = useState<number>(40);
   const [showGrid, setShowGrid] = useState<boolean>(true);
   const [tokens, setTokens] = useState<Token[]>([
-    { id: 1, x: 120, y: 120, color: '#ff6b6b', name: 'Player 1', size: 30, snapToGrid: true },
-    { id: 2, x: 200, y: 160, color: '#4ecdc4', name: 'Player 2', size: 30, snapToGrid: true },
-    { id: 3, x: 280, y: 200, color: '#45b7d1', name: 'NPC 1', size: 25, snapToGrid: false },
+    { id: "db4f64f8-3465-450f-a175-71c8a21c92ad", x: 120, y: 120, color: '#ff6b6b', name: 'Player 1', size: 30, snapToGrid: true },
+    { id: "2", x: 200, y: 160, color: '#4ecdc4', name: 'Player 2', size: 30, snapToGrid: true },
+    { id: "3", x: 280, y: 200, color: '#45b7d1', name: 'NPC 1', size: 25, snapToGrid: false },
   ]);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -649,7 +649,7 @@ const GameBoard: React.FC = () => {
   // Add new token
   const addToken = (): void => {
     const newToken: Token = {
-      id: Date.now(),
+      id: Date.now().toString(),
       x: 100,
       y: 100,
       color: `hsl(${Math.random() * 360}, 70%, 60%)`,
@@ -668,7 +668,7 @@ const GameBoard: React.FC = () => {
   };
 
   // Delete token
-  const deleteToken = (tokenId: number): void => {
+  const deleteToken = (tokenId: string): void => {
     setTokens(prev => prev.filter(token => token.id !== tokenId));
   };
 
@@ -785,9 +785,7 @@ const GameBoard: React.FC = () => {
         {/* Canvas Area */}
         <div className="flex-1 overflow-auto bg-gray-50 p-4">
           <div className="bg-white rounded-lg shadow-sm border relative">
-            <div className="TokenDisplay">
               {hoveredToken && <TokenDisplay tokenId={hoveredToken.id} tokenPosition={canvasToScreen(hoveredToken.x, hoveredToken.y)} />}
-            </div>
             <canvas
               ref={canvasRef}
               className={`border rounded-lg select-none ${

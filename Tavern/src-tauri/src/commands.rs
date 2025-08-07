@@ -70,6 +70,14 @@ pub async fn create_campaign(
 }
 
 #[tauri::command]
+pub async fn get_active_campaign_id(
+    state: State<'_, AppStateType>,
+) -> AppResult<String> {
+    let app_state = state.lock().await;
+    let campaign_id = app_state.get_active_campaign_id();
+    Ok(campaign_id)
+}
+#[tauri::command]
 pub async fn get_campaigns(
     database: State<'_, DatabaseType>,
 ) -> AppResult<Vec<Campaign>> {
@@ -87,6 +95,7 @@ pub async fn get_campaign(
     let campaign = db.get_campaign(&campaign_id).await?;
     Ok(campaign)
 }
+
 
 // #[tauri::command]
 pub async fn update_campaign(
