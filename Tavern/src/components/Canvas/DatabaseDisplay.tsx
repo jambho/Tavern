@@ -12,6 +12,7 @@ let charactersString = JSON.stringify(characters, null, 2);
 let fighterStatsString = JSON.stringify(characters[0].stats, null, 2);
 
 
+
 const DatabaseDisplay: React.FC = () => {
     
     const [isVisibleCampaigns, setIsVisibleCampaigns] = useState(false);
