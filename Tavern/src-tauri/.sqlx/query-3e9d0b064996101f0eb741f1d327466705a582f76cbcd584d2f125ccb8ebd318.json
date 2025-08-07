@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO maps (id, campaign_id, name, description, image_url, grid_size, width, height, tokens, created_at, updated_at)\n            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "3e9d0b064996101f0eb741f1d327466705a582f76cbcd584d2f125ccb8ebd318"
+}

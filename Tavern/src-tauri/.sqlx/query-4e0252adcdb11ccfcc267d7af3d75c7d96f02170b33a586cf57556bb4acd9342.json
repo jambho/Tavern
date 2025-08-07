@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE maps SET tokens = ?1, fog_of_war = ?2, updated_at = ?3 WHERE id = ?4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "4e0252adcdb11ccfcc267d7af3d75c7d96f02170b33a586cf57556bb4acd9342"
+}

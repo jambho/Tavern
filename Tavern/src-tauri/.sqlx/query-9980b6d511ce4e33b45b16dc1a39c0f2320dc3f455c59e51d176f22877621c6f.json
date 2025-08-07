@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM maps WHERE campaign_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "9980b6d511ce4e33b45b16dc1a39c0f2320dc3f455c59e51d176f22877621c6f"
+}

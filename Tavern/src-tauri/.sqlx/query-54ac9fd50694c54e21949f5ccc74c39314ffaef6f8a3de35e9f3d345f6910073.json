@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM characters WHERE campaign_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "54ac9fd50694c54e21949f5ccc74c39314ffaef6f8a3de35e9f3d345f6910073"
+}
