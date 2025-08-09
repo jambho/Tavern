@@ -1,9 +1,9 @@
 import React, { useCallback, useRef } from 'react';
 import { Application, extend } from '@pixi/react';
-import {  } from '@pixi/events';
 import { Container, Graphics, Assets, Sprite, FederatedWheelEvent, FederatedPointerEvent } from 'pixi.js';
-import { app } from '@tauri-apps/api';
-
+import TokenDisplay from './TokenDisplay';
+import { event } from '@tauri-apps/api';
+import MapDisplay from './MapDisplay';
 
 extend({ Graphics, Container, Sprite, FederatedWheelEvent, FederatedPointerEvent });
 
@@ -13,16 +13,16 @@ await Assets.init({
 });
 
 const map = await Assets.load('GL_EldritchChurch_DeepSea.jpg');
+const token = await Assets.load('Token.png');
 
 
 
 const TokenGrid: React.FC = () => {
     const [gridSize, setGridSize] = React.useState(30);
     const [imageSize, setImageSize] = React.useState(30);
-
     const appRef = useRef<any>(null);
 
-    React.useEffect(() => {
+    /*React.useEffect(() => {
         if(appRef.current?.view){
             const canvas = appRef.current.view as HTMLCanvasElement;
             const handleWheel = (event: WheelEvent) => {
@@ -35,7 +35,7 @@ const TokenGrid: React.FC = () => {
                 canvas.removeEventListener('wheel', handleWheel);
             };
         }
-    }, []);
+    }, []);*/
 
     const drawCallback = useCallback<(graphics: Graphics) => void>((graphics) => {
     graphics.clear();
@@ -63,65 +63,36 @@ const TokenGrid: React.FC = () => {
     };
 
 
-    return  <>
-                <Application
+    return      <Application
                     resizeTo={window}
                     backgroundColor={0xFFFFFF}
                     antialias={true}>   
-                    <pixiContainer
+                    {/*<pixiContainer
                         position={{ x: 0, y: 0 }}
                         scale={imageSize / 30}
                         eventMode='static'
                         onWheel={(e: FederatedWheelEvent) => {
-                            e.originalEvent.preventDefault();
-                            e.stopImmediatePropagation();
-                            e.originalEvent.stopPropagation();
-                            console.log('Wheel event:', e.propagationImmediatelyStopped);
-                            console.log('Bubble:', e.bubbles);
-                            console.log('Default:', e.defaultPrevented);
                             const delta = e.deltaY > 0 ? -1 : 1;
                             setImageSize((prev) => Math.max(1, prev + delta));
-                            console.log('Wheel event:', e.deltaY, 'New image size:', imageSize + delta);
-                        }}
-                        onClick={(event: FederatedPointerEvent) => {
-                            console.log('Click event:', event);
                         }}
                     >
                         <pixiSprite
-
                             texture={map}
                         />
-                        <pixiGraphics
-                            scale={gridSize / 30}
-                            draw={drawCallback}
-                        />
-                    </pixiContainer>
-                </Application>
-                <label className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Grid Size:</span>
-                        <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={gridSize}
-                        onChange={handleGridSizeChange}
-                        className="w-20"
-                        />
-                    <span className="text-sm w-8">{gridSize}</span>
-                </label>
-                    <label className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">Grid Size:</span>
-                            <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={imageSize}
-                            onChange={handleImageSizeChange}
-                            className="w-20"
+                            <TokenDisplay
+                                tokenId={1}
+                                tokenPosition={{ x: 360, y: 360 }}
+                                size={30}
+                                texture={token}
+                                scale={imageSize / 30}
                             />
-                        <span className="text-sm w-8">{imageSize}</span>
-                </label>
-            </>
+                            <pixiGraphics
+                                scale={gridSize / 30}
+                                draw={drawCallback}
+                            />
+                    </pixiContainer>*/}
+                    <MapDisplay/>
+                </Application>
 };
 
 export default TokenGrid;
