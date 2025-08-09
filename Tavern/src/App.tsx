@@ -1,17 +1,11 @@
-import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-import GameBoard from "./components/Canvas/GameBoard";
-import DatabaseDisplay from "./components/Canvas/DatabaseDisplay";
-import TokenGrid from "./components/Canvas/TokenGrid";
+import PixiDisplay from "./components/Canvas/PixiDisplay";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
 function App() {
   return (
     <ThemeProvider>
-      {/* <GameBoard /> */}
-      <TokenGrid />
-      {/* <DatabaseDisplay /> */}
+      <PixiDisplay />
     </ThemeProvider>
   );
 }

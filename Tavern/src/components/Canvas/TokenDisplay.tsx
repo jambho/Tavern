@@ -1,7 +1,6 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { extend } from '@pixi/react';
 import { Texture, Container, Graphics, Assets, Sprite, FederatedWheelEvent, FederatedPointerEvent } from 'pixi.js';
-import { invoke } from '@tauri-apps/api/core';
 
 extend({ Texture, Graphics, Container, Sprite, FederatedWheelEvent, FederatedPointerEvent });
 
@@ -17,6 +16,7 @@ interface TokenDisplayProps {
     texture: Texture;
     imgUrl?: string;
     scale: number;
+    gridScale: number;
 }
 const TokenDisplay: React.FC<TokenDisplayProps> = (
    {tokenId,
@@ -24,7 +24,8 @@ const TokenDisplay: React.FC<TokenDisplayProps> = (
     size,
     texture,
     imgUrl,
-    scale
+    scale,
+    gridScale
 }
 ) => {
     
@@ -32,17 +33,22 @@ const TokenDisplay: React.FC<TokenDisplayProps> = (
     const [image, setImage] = useState<Texture | null>(null);
     const [isHover, setIsHover] = useState(false);
     const [isActive, setIsActive] = useState(false);
-    const [cursor, setCursor] = useState('pointer');
-
     const handlePointerDown = (event: FederatedPointerEvent) => {
         setIsActive(true);
+        if(spriteRef.current) {
+            console.log("Sprite reference is valid");
+        }
         if (spriteRef.current && spriteRef.current.parent) {
             spriteRef.current.alpha = 0.5;
+            console.log('Refs are checked');
             spriteRef.current.parent.on('pointermove', (event: FederatedPointerEvent) => {
-            onDragMove(event);
-        });
+                event.preventDefault();
+                event.stopPropagation();
+                console.log('Pointer move on token:', tokenId, 'at position:', tokenPosition);
+                onDragMove(event);
+            });
         }
-
+        console.log('Pointer down on token:', tokenId, 'at position:', tokenPosition);
     };
     const handlePointerUp = (event: FederatedPointerEvent) => {
         setIsActive(false);
@@ -57,7 +63,7 @@ const TokenDisplay: React.FC<TokenDisplayProps> = (
             spriteRef.current.parent.toLocal(event.global, undefined, spriteRef.current.position);
             var newPosition = spriteRef.current.position;
 
-            spriteRef.current.position.set(newPosition.x-(newPosition.x%30), newPosition.y-(newPosition.y%30));
+            spriteRef.current.position.set(newPosition.x-(newPosition.x%gridScale), newPosition.y-(newPosition.y%gridScale));
         }
     };
 
@@ -79,23 +85,31 @@ const TokenDisplay: React.FC<TokenDisplayProps> = (
             width={size}
             height={size}
             zIndex={4}
-            cursor={cursor}
-            //scale={scale}
             eventMode='static'
             interactive={true}
             onPointerOver={() => setIsHover(true)}
             onPointerOut={() => setIsHover(false)}
             onPointerDown={(event: FederatedPointerEvent) => {
+                event.preventDefault();
                 handlePointerDown(event);
-                setCursor('grabbing');
+                event.stopPropagation();
+
             }}
             onPointerUp={(event: FederatedPointerEvent) => {
+                event.preventDefault();
                 handlePointerUp(event);
-                setCursor('pointer');
+                event.stopPropagation();
+
             }}
             onPointerUpOutside={(event: FederatedPointerEvent) => {
+                event.preventDefault();
                 handlePointerUp(event);
-                setCursor('pointer');
+                event.stopPropagation();
+
+            }}
+            onPointerMove={(event: FederatedPointerEvent) => {
+                event.preventDefault();
+                event.stopPropagation();
             }}
         />
     )
@@ -103,5 +117,3 @@ const TokenDisplay: React.FC<TokenDisplayProps> = (
 
 export default TokenDisplay;
 
-
-// in GameBoard, handleTokenHover() is a callback that returns the component and then later on theres conditional rendering like tokenHovered ? handleTokenHover() : null
